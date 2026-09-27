@@ -1,0 +1,13 @@
+# Core Data Science & Visualization
+numpy
+pandas
+matplotlib
+
+# Machine Learning & Optimization
+scikit-learn
+xgboost
+optuna
+
+# Experiment Tracking & Hugging Face Datasets
+mlflow
+datasets
