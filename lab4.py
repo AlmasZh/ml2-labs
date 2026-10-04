@@ -604,43 +604,31 @@ with mlflow.start_run(run_name="Clustering_Benchmark_Summary"):
     })
 
 # ---------------------------------------------------------------------------
-# 9. CONCLUSION & DEFENSE PREPARATION GUIDE
+# 9. CONCLUSION & SUMMARY
 # ---------------------------------------------------------------------------
-print("\n" + "=" * 75)
-print("SECTION 7: CONCLUSION & DEFENSE PREPARATION GUIDE")
-print("=" * 75)
+print("\n" + "=" * 70)
+print("CONCLUSION & SUMMARY")
+print("=" * 70)
 print(f"""
-1. IMPACT OF DIMENSIONALITY REDUCTION ON CLUSTERING:
-   - In 25D Original Space: Points suffer from the 'Curse of Dimensionality' (distance concentration).
-     High-dimensional Euclidean distance variance shrinks, causing clusters to be diffuse.
-     K-Means Silhouette in 25D: {results_df[(results_df['Algorithm']=='KMeans') & (results_df['Feature_Space']=='Original_25D')]['Silhouette'].values[0]:.4f}
-   - In 6D PCA Space: PCA filters out orthogonal noise and redundant collinear features while
-     retaining ~80% of total variance. This substantially sharpens cluster boundaries:
-     K-Means Silhouette in PCA 6D: {results_df[(results_df['Algorithm']=='KMeans') & (results_df['Feature_Space']=='PCA_6D')]['Silhouette'].values[0]:.4f} (Substantial improvement!)
-   - DBSCAN: In 25D, DBSCAN struggled with uniform density decay. In PCA space, local densities
-     became well-defined, reducing noise and producing cohesive density regions.
+1. DATASET & FEATURE ENGINEERING:
+   - Obesity Levels dataset (2111 rows, 7 classes).
+   - Engineered features: BMI = Weight / Height^2, Age_BMI, and Water_per_Meal.
+   - Standard scaling ensures equal weight in distance calculations.
 
-2. ALGORITHM COMPARISON & TRADEOFFS:
-   - K-Means: Fastest, produces spherical convex clusters. Highly effective after PCA decorrelation.
-   - Agglomerative Hierarchical: Ward's criterion creates very clean hierarchical groupings without
-     random initialization variance. Excellent for visualizing structure via Dendrograms.
-   - DBSCAN: Discovers arbitrary non-convex density shapes and detects true anomalies (-1 noise),
-     without requiring pre-specification of K. Highly sensitive to epsilon and min_samples.
-   - GMM: Probabilistic soft clustering allows points to belong to multiple Gaussian components
-     with posterior probabilities; fits elliptical clusters via Expectation-Maximization (EM).
+2. CLUSTERING & DIMENSION REDUCTION COMPARISON:
+   - Original 25D Space: High-dimensional distance concentration results in lower
+     separation (K-Means Silhouette = {results_df[(results_df['Algorithm']=='KMeans') & (results_df['Feature_Space']=='Original_25D')]['Silhouette'].values[0]:.4f}).
+   - PCA 6D Space: Filtering out noise and collinearity sharpens cluster boundaries,
+     increasing K-Means Silhouette to {results_df[(results_df['Algorithm']=='KMeans') & (results_df['Feature_Space']=='PCA_6D')]['Silhouette'].values[0]:.4f} and Calinski-Harabasz from 194.9 to 482.0.
+   - Alignment with True Classes: External metrics (ARI and NMI) improved across all
+     partitioning models (K-Means ARI: 0.237 -> 0.292, GMM ARI: 0.166 -> 0.294),
+     showing that PCA helped discover true clinical categories.
 
-3. THEORETICAL DEFENSE: K-MEANS CLUSTERING (<=100% DEFENCE CRITERIA)
-   - Objective Function: Minimize Within-Cluster Sum of Squares (Inertia):
-       J = \\sum_{{k=1}}^K \\sum_{{x_i \\in C_k}} ||x_i - \\mu_k||^2
-   - Lloyd's Algorithm Iteration:
-       Step 1 (Assignment): Assign each sample to the nearest centroid \\mu_k using Euclidean distance.
-       Step 2 (Update): Recompute \\mu_k as the empirical mean of all samples assigned to cluster k.
-       Repeat until centroids stabilize (convergence guaranteed to a local minimum).
-   - Practical Considerations:
-       * Feature scaling is mandatory (otherwise large-scale features dominate distance).
-       * Sensitive to initial centroid placement (solved using k-means++ initialization).
-       * Assumes spherical, equally-sized clusters.
+3. ALGORITHM TAKEAWAYS:
+   - K-Means: Fast and effective on spherical clusters, benefits the most from PCA.
+   - Agglomerative: Ward linkage builds stable hierarchical groups without random seed variance.
+   - DBSCAN: Sparse in 25D (21 small clusters), but in 6D with eps=1.5 it finds 5 dense regions.
+   - GMM: Soft clustering handles overlapping clusters through Gaussian components.
 
-Check your MLflow Tracking Dashboard at: {TRACKING_URI}
-All diagnostic figures saved to ./plots/
+Check your MLflow UI at: {TRACKING_URI}
 """)
