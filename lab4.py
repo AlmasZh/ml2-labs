@@ -351,20 +351,14 @@ plt.close(fig_gmm)
 # ---------------------------------------------------------------------------
 # 6. EVALUATION HELPER & MANUAL METRIC LOGGING
 # ---------------------------------------------------------------------------
-def evaluate_clustering(X_space, labels, y_ground_truth=None, model=None):
+def evaluate_clustering(X_space, labels, y_ground_truth=None, model=None, X_orig=None):
     """
-    Computes both unsupervised (internal) and supervised (external) clustering metrics
-    covered in ML lecture.
-    
     Internal Validation Metrics:
-      - Silhouette Score: s = (b - a) / max(a, b). Measures intra-cluster cohesion vs inter-cluster separation. Range: [-1, 1].
-      - Davies-Bouldin Index: Average similarity measure between each cluster and its most similar one. Lower is better.
-      - Calinski-Harabasz Index (Variance Ratio Criterion): Ratio of between-cluster dispersion to within-cluster dispersion. Higher is better.
-      
-    External Validation Metrics (vs Ground Truth):
-      - Adjusted Rand Index (ARI): Corrected-for-chance agreement between clustering and true labels. Range: [-1, 1].
-      - Normalized Mutual Information (NMI): Information-theoretic overlap. Range: [0, 1].
-      - Homogeneity, Completeness, V-Measure.
+      - Silhouette (in feature space)
+      - Silhouette in Original 25D Space (Fair cross-dimensional comparison)
+      - Davies-Bouldin & Calinski-Harabasz
+    External Validation Metrics:
+      - ARI, NMI, Homogeneity, Completeness, V-Measure
     """
     valid_mask = labels != -1
     unique_clusters = set(labels[valid_mask])
@@ -381,10 +375,16 @@ def evaluate_clustering(X_space, labels, y_ground_truth=None, model=None):
         metrics["silhouette_score"] = float(silhouette_score(X_space[valid_mask], labels[valid_mask]))
         metrics["davies_bouldin_index"] = float(davies_bouldin_score(X_space[valid_mask], labels[valid_mask]))
         metrics["calinski_harabasz_index"] = float(calinski_harabasz_score(X_space[valid_mask], labels[valid_mask]))
+        
+        if X_orig is not None:
+            metrics["silhouette_in_original_space"] = float(silhouette_score(X_orig[valid_mask], labels[valid_mask]))
+        else:
+            metrics["silhouette_in_original_space"] = metrics["silhouette_score"]
     else:
         metrics["silhouette_score"] = 0.0
         metrics["davies_bouldin_index"] = 0.0
         metrics["calinski_harabasz_index"] = 0.0
+        metrics["silhouette_in_original_space"] = 0.0
         
     if y_ground_truth is not None:
         metrics["adjusted_rand_index"] = float(adjusted_rand_score(y_ground_truth, labels))
@@ -481,7 +481,8 @@ for space_name, space_info in feature_spaces.items():
             mlflow.log_params(params_to_log)
             
             # Evaluate metrics from lecture
-            metrics = evaluate_clustering(X_curr, labels, y_ground_truth=y_true, model=model)
+            # Call updated evaluate_clustering passing X_scaled as X_orig
+            metrics = evaluate_clustering(X_curr, labels, y_ground_truth=y_true, model=model, X_orig=X_scaled)
             metrics["fit_time_seconds"] = float(fit_time)
             
             # Manual logging of all lecture metrics into MLflow
@@ -490,7 +491,7 @@ for space_name, space_info in feature_spaces.items():
             # Create 2D PCA cluster visualization plot
             fig_cl, ax_cl = plt.subplots(figsize=(6, 4.5))
             scatter_cl = ax_cl.scatter(X_pca[:, 0], X_pca[:, 1], c=labels, cmap="tab10", alpha=0.6, s=15)
-            ax_cl.set_title(f"{algo_name} on {space_name}\nSilhouette: {metrics['silhouette_score']:.3f} | ARI: {metrics['adjusted_rand_index']:.3f}", fontsize=10, fontweight="bold")
+            ax_cl.set_title(f"{algo_name} on {space_name}\nSilhouette: {metrics['silhouette_score']:.3f} | Sil(25D): {metrics['silhouette_in_original_space']:.3f} | ARI: {metrics['adjusted_rand_index']:.3f}", fontsize=9, fontweight="bold")
             ax_cl.set_xlabel("Principal Component 1")
             ax_cl.set_ylabel("Principal Component 2")
             plt.tight_layout()
@@ -505,13 +506,14 @@ for space_name, space_info in feature_spaces.items():
             except Exception as e:
                 pass
                 
-            # Store summary row
+            # Store summary row (now tracking Sil_in_25D)
             record = {
                 "Algorithm": algo_name,
                 "Feature_Space": space_name,
                 "Clusters": metrics["n_clusters"],
                 "Noise_Pts": metrics["n_noise_points"],
                 "Silhouette": metrics["silhouette_score"],
+                "Sil_in_25D": metrics["silhouette_in_original_space"],
                 "Davies_Bouldin": metrics["davies_bouldin_index"],
                 "Calinski_Harabasz": metrics["calinski_harabasz_index"],
                 "ARI": metrics["adjusted_rand_index"],
@@ -520,7 +522,7 @@ for space_name, space_info in feature_spaces.items():
             }
             experiment_results.append(record)
             
-            print(f"  {algo_name:<15} | Clusters: {metrics['n_clusters']:<2} | Sil: {metrics['silhouette_score']:.4f} | DB: {metrics['davies_bouldin_index']:.4f} | ARI: {metrics['adjusted_rand_index']:.4f} | Time: {fit_time:.4f}s")
+            print(f"  {algo_name:<15} | Clusters: {metrics['n_clusters']:<2} | Sil: {metrics['silhouette_score']:.4f} | Sil(25D): {metrics['silhouette_in_original_space']:.4f} | DB: {metrics['davies_bouldin_index']:.4f} | ARI: {metrics['adjusted_rand_index']:.4f} | Time: {fit_time:.4f}s")
 
 # ---------------------------------------------------------------------------
 # 8. COMPARATIVE VISUALIZATIONS & SUMMARY TABLE
