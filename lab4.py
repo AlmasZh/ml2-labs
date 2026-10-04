@@ -305,48 +305,43 @@ dendro_path = "plots/hierarchical_dendrogram.png"
 fig_dendro.savefig(dendro_path, dpi=180)
 plt.close(fig_dendro)
 
-# 3. DBSCAN Diagnostics: K-Distance Graph (Knee Plot) to determine eps
-print("[DBSCAN] Calculating K-Distance Graph for optimal eps selection...")
+# 3. DBSCAN Diagnostics: Dual K-Distance Graphs (Knee Method for both 25D and 6D spaces)
+print("[DBSCAN] Calculating K-Distance Graphs for optimal eps selection across both spaces...")
 min_pts = 5
-nbrs = NearestNeighbors(n_neighbors=min_pts).fit(X_scaled)
-distances, _ = nbrs.kneighbors(X_scaled)
-k_distances = np.sort(distances[:, min_pts - 1])
 
-fig_knee, ax_knee = plt.subplots(figsize=(7, 4))
-ax_knee.plot(k_distances, color="darkorange", linewidth=2)
-ax_knee.axhline(y=2.8, color="navy", linestyle="--", label="Epsilon threshold for 25D (eps=2.8)")
-ax_knee.axhline(y=1.5, color="crimson", linestyle="--", label="Epsilon threshold for PCA 6D (eps=1.5)")
-ax_knee.set_title("DBSCAN k-Distance Graph (Knee Method for eps)", fontsize=11, fontweight="bold")
-ax_knee.set_xlabel("Data Points Sorted by Distance")
-ax_knee.set_ylabel(f"{min_pts}-NN Distance")
-ax_knee.legend()
+# Compute 5-NN distances for Original 25D space
+nbrs_orig = NearestNeighbors(n_neighbors=min_pts).fit(X_scaled)
+distances_orig, _ = nbrs_orig.kneighbors(X_scaled)
+k_distances_orig = np.sort(distances_orig[:, min_pts - 1])
+
+# Compute 5-NN distances for PCA 6D space
+nbrs_pca = NearestNeighbors(n_neighbors=min_pts).fit(X_pca)
+distances_pca, _ = nbrs_pca.kneighbors(X_pca)
+k_distances_pca = np.sort(distances_pca[:, min_pts - 1])
+
+# Side-by-side diagnostic knee plots
+fig_knee, axes_knee = plt.subplots(1, 2, figsize=(13, 4.5))
+
+# Plot 25D Knee
+axes_knee[0].plot(k_distances_orig, color="navy", linewidth=2)
+axes_knee[0].axhline(y=2.8, color="crimson", linestyle="--", label="Elbow Knee: eps = 2.8")
+axes_knee[0].set_title("DBSCAN k-Distance: Original Space (25D)", fontsize=11, fontweight="bold")
+axes_knee[0].set_xlabel("Data Points (Sorted by Distance)")
+axes_knee[0].set_ylabel(f"{min_pts}-NN Distance")
+axes_knee[0].legend()
+
+# Plot PCA 6D Knee
+axes_knee[1].plot(k_distances_pca, color="darkorange", linewidth=2)
+axes_knee[1].axhline(y=1.5, color="crimson", linestyle="--", label="Elbow Knee: eps = 1.5")
+axes_knee[1].set_title("DBSCAN k-Distance: PCA Reduced Space (6D)", fontsize=11, fontweight="bold")
+axes_knee[1].set_xlabel("Data Points (Sorted by Distance)")
+axes_knee[1].set_ylabel(f"{min_pts}-NN Distance")
+axes_knee[1].legend()
+
 plt.tight_layout()
 knee_path = "plots/dbscan_k_distance_knee.png"
 fig_knee.savefig(knee_path, dpi=180)
 plt.close(fig_knee)
-
-# 4. Gaussian Mixture Models (GMM) Diagnostics: BIC and AIC Curves
-print("[GMM] Calculating BIC and AIC across components 2..10...")
-bic_scores = []
-aic_scores = []
-gmm_k_range = range(2, 11)
-
-for k in gmm_k_range:
-    gmm_diag = GaussianMixture(n_components=k, covariance_type="full", random_state=42).fit(X_scaled)
-    bic_scores.append(gmm_diag.bic(X_scaled))
-    aic_scores.append(gmm_diag.aic(X_scaled))
-
-fig_gmm, ax_gmm = plt.subplots(figsize=(7, 4))
-ax_gmm.plot(gmm_k_range, bic_scores, marker="o", label="BIC (Bayesian Info Criterion)", color="darkviolet", linewidth=2)
-ax_gmm.plot(gmm_k_range, aic_scores, marker="s", label="AIC (Akaike Info Criterion)", color="teal", linewidth=2)
-ax_gmm.set_title("GMM Model Selection: BIC and AIC vs. Components (Lower is Better)", fontsize=11, fontweight="bold")
-ax_gmm.set_xlabel("Number of Components")
-ax_gmm.set_ylabel("Information Criterion Score")
-ax_gmm.legend()
-plt.tight_layout()
-gmm_diag_path = "plots/gmm_bic_aic.png"
-fig_gmm.savefig(gmm_diag_path, dpi=180)
-plt.close(fig_gmm)
 
 # ---------------------------------------------------------------------------
 # 6. EVALUATION HELPER & MANUAL METRIC LOGGING
